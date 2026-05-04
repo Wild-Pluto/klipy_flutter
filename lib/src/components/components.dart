@@ -1,4 +1,5 @@
 export 'attribution.dart';
+export 'ad_cell.dart';
 export 'category.dart';
 export 'drag_handle.dart';
 export 'media_widget.dart';

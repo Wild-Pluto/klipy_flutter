@@ -60,6 +60,22 @@ You must pass in a valid `apiKey` provided by [KLIPY](https://docs.klipy.com/get
 final klipyClient = KlipyClient(apiKey: 'YOUR_API_KEY');
 ```
 
+For KLIPY ads support, pass `adRequestContext` and a proper `userAgent`:
+
+```
+final klipyClient = KlipyClient(
+  apiKey: 'YOUR_API_KEY',
+  adRequestContext: const KlipyAdRequestContext(
+    customerId: 'stable-user-id',
+    adMinWidth: 50,
+    adMaxWidth: 320,
+    adMinHeight: 50,
+    adMaxHeight: 180,
+  ),
+  userAgent: 'MyApp/1.0 (Flutter)',
+);
+```
+
 ## Example
 
 For more elaborate examples feel free to check out [example/lib/main.dart](https://github.com/Flyclops/klipy_flutter/blob/main/example/lib/main.dart).

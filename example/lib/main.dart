@@ -36,7 +36,18 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   // replace apiKey with an api key provided by KLIPY > https://docs.klipy.com/getting-started
-  var klipyClient = KlipyClient(apiKey: FlutterConfig.get('KLIPY_API_KEY'));
+  var klipyClient = KlipyClient(
+    apiKey: FlutterConfig.get('KLIPY_API_KEY'),
+    // Required for KLIPY ad serving in mixed feeds.
+    adRequestContext: const KlipyAdRequestContext(
+      customerId: 'example-user-id',
+      adMinWidth: 50,
+      adMaxWidth: 320,
+      adMinHeight: 50,
+      adMaxHeight: 180,
+    ),
+    userAgent: 'KLIPYFlutterExample/1.0 (Flutter)',
+  );
   // define a result that we can display later
   KlipyResultObject? selectedResult;
 

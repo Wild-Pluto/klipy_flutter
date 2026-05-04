@@ -71,8 +71,8 @@ class _KlipyTabViewState extends State<KlipyTabView>
   // Collection
   KlipyResponse? _collection;
 
-  // List of gifs
-  List<KlipyResultObject> _list = [];
+  // Feed items can be GIFs, ads, or unknown payloads.
+  List<KlipyFeedItem> _list = [];
 
   // Direction
   final Axis _scrollDirection = Axis.vertical;
@@ -201,15 +201,7 @@ class _KlipyTabViewState extends State<KlipyTabView>
         crossAxisCount: widget.gifsPerRow,
         crossAxisSpacing: 8,
         keyboardDismissBehavior: _appBarProvider.keyboardDismissBehavior,
-        itemBuilder:
-            (ctx, idx) => ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: KlipySelectableGif(
-                backgroundColor: widget.style.mediaBackgroundColor,
-                onTap: (selectedResult) => _selectedGif(selectedResult),
-                result: _list[idx],
-              ),
-            ),
+        itemBuilder: (ctx, idx) => _buildFeedItem(_list[idx]),
         itemCount: _list.length,
         mainAxisSpacing: 8,
         // Add safe area padding if `KlipyAttributionType.poweredBy` is disabled
@@ -222,6 +214,26 @@ class _KlipyTabViewState extends State<KlipyTabView>
         scrollDirection: _scrollDirection,
       ),
     );
+  }
+
+  Widget _buildFeedItem(KlipyFeedItem item) {
+    if (item is KlipyGifFeedItem) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: KlipySelectableGif(
+          backgroundColor: widget.style.mediaBackgroundColor,
+          onTap: (selectedResult) => _selectedGif(selectedResult),
+          result: item.result,
+        ),
+      );
+    }
+
+    if (item is KlipyAdFeedItem) {
+      return KlipyAdCell(adItem: item);
+    }
+
+    // Unknown feed item shape from API: skip rendering safely.
+    return const SizedBox.shrink();
   }
 
   // Estimate the request limit based on the visible area. Doesn't need to be precise.
@@ -275,7 +287,10 @@ class _KlipyTabViewState extends State<KlipyTabView>
     try {
       final fromKlipy = await client.categories();
       final featuredGifResponse = await client.featured(limit: 1);
-      final featuredGif = featuredGifResponse?.results.first;
+      final featuredGif = featuredGifResponse?.results
+          .whereType<KlipyGifFeedItem>()
+          .map((item) => item.result)
+          .firstOrNull;
       if (featuredGif != null) {
         fromKlipy.insert(
           0,

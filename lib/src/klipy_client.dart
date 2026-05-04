@@ -45,10 +45,12 @@ class KlipyStyle {
 class KlipyClient extends klipy_dart.KlipyClient {
   const KlipyClient({
     required super.apiKey,
+    super.adRequestContext,
     super.client = const klipy_dart.KlipyHttpClient(),
     super.country = 'US',
     super.locale = 'en_US',
     super.networkTimeout = const Duration(seconds: 5),
+    super.userAgent,
   });
 
   /// Shows a bottom sheet modal that allows you to select a KLIPY media object for use.
