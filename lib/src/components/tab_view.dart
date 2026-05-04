@@ -277,6 +277,7 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
     // Wait for a frame so that we can ensure that `scrollController` is attached
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!_scrollController.hasClients) return;
       if (_scrollController.position.extentAfter == 0) {
         _loadMore(fillScrollableArea: true);
       }
@@ -373,6 +374,8 @@ class _KlipyTabViewState extends State<KlipyTabView>
       rethrow;
     }
 
+    if (!_scrollController.hasClients) return;
+
     if (fillScrollableArea && _scrollController.position.extentAfter == 0) {
       Future.microtask(() => _loadMore(fillScrollableArea: true));
     }
@@ -393,6 +396,8 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
   // if you scroll within a threshhold of the bottom of the screen, load more gifs
   void _scrollControllerListener() {
+    if (!_scrollController.hasClients) return;
+
     // trending-gifs, etc
     final customCategorySelected =
         _appBarProvider.selectedCategory != null &&
@@ -401,8 +406,7 @@ class _KlipyTabViewState extends State<KlipyTabView>
     if (customCategorySelected ||
         _appBarProvider.queryText != '' ||
         widget.showCategories == false) {
-      if (_scrollController.positions.last.extentAfter.lessThan(500) &&
-          !_isLoading) {
+      if (_scrollController.position.extentAfter.lessThan(500) && !_isLoading) {
         _loadMore();
       }
     }
