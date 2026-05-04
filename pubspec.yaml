@@ -20,7 +20,9 @@ dependencies:
   extended_image: ^10.0.1
   webview_flutter: ^4.13.0
   klipy_dart:
-    path: ../klipy_dart
+    git:
+      url: https://github.com/Wild-Pluto/klipy_dart.git
+      ref: feature/klipy-ads
 
 dev_dependencies:
   flutter_test:
