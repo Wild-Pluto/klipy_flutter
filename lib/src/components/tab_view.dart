@@ -56,6 +56,8 @@ class KlipyTabView extends StatefulWidget {
 
 class _KlipyTabViewState extends State<KlipyTabView>
     with AutomaticKeepAliveClientMixin {
+  static const _logTag = '[KlipyAds][TabView]';
+
   @override
   bool get wantKeepAlive => widget.keepAliveTabView ?? true;
 
@@ -288,10 +290,11 @@ class _KlipyTabViewState extends State<KlipyTabView>
     try {
       final fromKlipy = await client.categories();
       final featuredGifResponse = await client.featured(limit: 1);
-      final featuredGif = featuredGifResponse?.results
-          .whereType<KlipyGifFeedItem>()
-          .map((item) => item.result)
-          .firstOrNull;
+      final featuredGif =
+          featuredGifResponse?.results
+              .whereType<KlipyGifFeedItem>()
+              .map((item) => item.result)
+              .firstOrNull;
       if (featuredGif != null) {
         fromKlipy.insert(
           0,
@@ -350,6 +353,11 @@ class _KlipyTabViewState extends State<KlipyTabView>
         );
         if (response != null) {
           _collection = response;
+          _logResponseDiagnostics(
+            response,
+            isPagination: offset != null,
+            fillScrollableArea: fillScrollableArea,
+          );
         }
       }
 
@@ -432,5 +440,57 @@ class _KlipyTabViewState extends State<KlipyTabView>
   /// When new tab is loaded into view
   void _tabProviderListener() {
     _initialGifFetch();
+  }
+
+  void _logResponseDiagnostics(
+    KlipyResponse response, {
+    required bool isPagination,
+    required bool fillScrollableArea,
+  }) {
+    final totalResults = response.results.length;
+    final gifCount = response.results.whereType<KlipyGifFeedItem>().length;
+    final adCount = response.results.whereType<KlipyAdFeedItem>().length;
+    final unknownCount =
+        response.results.whereType<KlipyUnknownFeedItem>().length;
+    final endpoint = response.endpoint?.name ?? 'unknown-endpoint';
+    final context = _resolveRequestContext();
+
+    debugPrint(
+      '$_logTag response '
+      'tab=${tab.name} '
+      'context=$context '
+      'endpoint=$endpoint '
+      'phase=${isPagination ? 'load-more' : 'initial-load'} '
+      'fillScrollableArea=$fillScrollableArea '
+      'query="${_appBarProvider.queryText.trim()}" '
+      'categoryPath=${_appBarProvider.selectedCategory?.path ?? 'none'} '
+      'total=$totalResults '
+      'gif=$gifCount ad=$adCount unknown=$unknownCount '
+      'next=${response.next ?? 'null'}',
+    );
+  }
+
+  String _resolveRequestContext() {
+    final isSearch = _appBarProvider.queryText.trim().isNotEmpty;
+    if (isSearch) {
+      if (tab.name.toLowerCase().contains('sticker')) {
+        return 'search-stickers';
+      }
+      if (tab.name.toLowerCase().contains('emoji')) {
+        return 'search-emojis';
+      }
+      return 'search';
+    }
+
+    if (tab.name.toLowerCase().contains('sticker')) {
+      return 'featured-stickers';
+    }
+    if (tab.name.toLowerCase().contains('emoji')) {
+      return 'featured-emojis';
+    }
+    if (_appBarProvider.selectedCategory?.path == featuredCategoryPath) {
+      return 'featured';
+    }
+    return widget.showCategories ? 'categories' : 'featured';
   }
 }
