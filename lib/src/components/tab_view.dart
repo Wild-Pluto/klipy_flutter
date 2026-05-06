@@ -19,6 +19,8 @@ class KlipyTabViewStyle {
 
 class KlipyTabView extends StatefulWidget {
   final Widget Function(BuildContext, Widget?)? builder;
+  final Widget Function(BuildContext context, KlipyFeedItem item)?
+  fallbackItemBuilder;
   final KlipyCategoryStyle categoryStyle;
   final KlipyClient client;
   final String featuredCategory;
@@ -38,6 +40,7 @@ class KlipyTabView extends StatefulWidget {
   const KlipyTabView({
     required this.client,
     this.builder,
+    this.fallbackItemBuilder,
     this.categoryStyle = const KlipyCategoryStyle(),
     String? featuredCategory,
     int? gifsPerRow,
@@ -232,6 +235,10 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
     if (item is KlipyAdFeedItem) {
       return KlipyAdCell(adItem: item);
+    }
+
+    if (widget.fallbackItemBuilder != null) {
+      return widget.fallbackItemBuilder!(context, item);
     }
 
     // Unknown feed item shape from API: skip rendering safely.
