@@ -204,6 +204,9 @@ class _KlipyTabViewState extends State<KlipyTabView>
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: CustomScrollView(
         controller: _scrollController,
+        primary: false,
+        physics: const ClampingScrollPhysics(),
+        shrinkWrap: true,
         keyboardDismissBehavior: _appBarProvider.keyboardDismissBehavior,
         slivers: _buildContentSlivers(),
       ),
@@ -213,12 +216,14 @@ class _KlipyTabViewState extends State<KlipyTabView>
   List<Widget> _buildContentSlivers() {
     final slivers = <Widget>[];
     final currentBatch = <KlipyFeedItem>[];
+    int batchIndex = 0;
 
     void flushBatch() {
       if (currentBatch.isEmpty) return;
       final items = List<KlipyFeedItem>.of(currentBatch);
       slivers.add(
         SliverMasonryGrid.count(
+          key: ValueKey('masonry-batch-$batchIndex'),
           crossAxisCount: widget.gifsPerRow,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
@@ -226,6 +231,7 @@ class _KlipyTabViewState extends State<KlipyTabView>
           itemBuilder: (ctx, idx) => _buildFeedItem(items[idx]),
         ),
       );
+      batchIndex++;
       currentBatch.clear();
     }
 
