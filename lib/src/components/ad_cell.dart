@@ -18,6 +18,7 @@ class _KlipyAdCellState extends State<KlipyAdCell> {
   static const _logTag = '[KlipyAds][AdCell]';
 
   late final WebViewController _controller;
+  String? _directAdUrl;
 
   @override
   void initState() {
@@ -31,6 +32,7 @@ class _KlipyAdCellState extends State<KlipyAdCell> {
     final rawContent = widget.adItem.content.trim();
     final iframeUrl = _extractIframeUrl(rawContent);
     final directUrl = _extractDirectUrl(rawContent);
+    _directAdUrl = directUrl;
 
     _controller =
         WebViewController()
@@ -55,12 +57,24 @@ class _KlipyAdCellState extends State<KlipyAdCell> {
               onNavigationRequest: (request) {
                 debugPrint('$_logTag navigation-request url=${request.url}');
                 final url = request.url.toLowerCase();
+                final requestedUri = Uri.tryParse(request.url);
                 final isInternalNavigation =
                     url.startsWith('about:blank') ||
                     url.startsWith('data:') ||
                     url.startsWith('file:');
+                final isInitialDirectAdRequest =
+                    _directAdUrl != null && request.url == _directAdUrl;
+                final isKlipyMainFrame =
+                    requestedUri != null &&
+                    (requestedUri.scheme == 'https' ||
+                        requestedUri.scheme == 'http') &&
+                    requestedUri.host.toLowerCase().endsWith('klipy.com');
+                final allow =
+                    isInternalNavigation ||
+                    isInitialDirectAdRequest ||
+                    isKlipyMainFrame;
                 final decision =
-                    isInternalNavigation
+                    allow
                         ? NavigationDecision.navigate
                         : NavigationDecision.prevent;
                 debugPrint('$_logTag navigation-decision decision=$decision');
