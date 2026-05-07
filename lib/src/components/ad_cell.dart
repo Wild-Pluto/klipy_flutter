@@ -28,14 +28,9 @@ class _KlipyAdCellState extends State<KlipyAdCell> {
       'height=${widget.adItem.height}',
     );
 
-    final iframeUrl = _extractIframeUrl(widget.adItem.content);
-    if (iframeUrl != null) {
-      debugPrint('$_logTag load-start mode=iframe-html src=$iframeUrl');
-    } else {
-      debugPrint(
-        '$_logTag load-start mode=html length=${widget.adItem.content.length}',
-      );
-    }
+    final rawContent = widget.adItem.content.trim();
+    final iframeUrl = _extractIframeUrl(rawContent);
+    final directUrl = _extractDirectUrl(rawContent);
 
     _controller =
         WebViewController()
@@ -72,8 +67,20 @@ class _KlipyAdCellState extends State<KlipyAdCell> {
                 return decision;
               },
             ),
-          )
-          ..loadHtmlString(widget.adItem.content);
+          );
+
+    if (directUrl != null) {
+      debugPrint('$_logTag load-start mode=url src=$directUrl');
+      _controller.loadRequest(Uri.parse(directUrl));
+      return;
+    }
+
+    if (iframeUrl != null) {
+      debugPrint('$_logTag load-start mode=iframe-html src=$iframeUrl');
+    } else {
+      debugPrint('$_logTag load-start mode=html length=${rawContent.length}');
+    }
+    _controller.loadHtmlString(rawContent);
   }
 
   @override
@@ -104,5 +111,17 @@ class _KlipyAdCellState extends State<KlipyAdCell> {
     );
     final match = regex.firstMatch(html);
     return match?.group(1);
+  }
+
+  String? _extractDirectUrl(String content) {
+    final parsed = Uri.tryParse(content);
+    if (parsed == null) return null;
+
+    final scheme = parsed.scheme.toLowerCase();
+    final isHttp = scheme == 'http' || scheme == 'https';
+    if (!isHttp) return null;
+    if (parsed.host.isEmpty) return null;
+
+    return parsed.toString();
   }
 }
