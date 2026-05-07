@@ -22,10 +22,10 @@ class KlipyAttribution extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logoPath =
+    String logoPath =
         style.brightnes == Brightness.light
-            ? 'packages/klipy_flutter/assets/powered_by_dark.png'
-            : 'packages/klipy_flutter/assets/powered_by_light.png';
+            ? 'powered_by_dark.png'
+            : 'powered_by_light.png';
     return Padding(
       // If safe area is required, add it.
       padding:
@@ -39,7 +39,8 @@ class KlipyAttribution extends StatelessWidget {
           alignment: Alignment.center,
           width: double.infinity,
           child: Image.asset(
-            logoPath,
+            'assets/$logoPath',
+            package: 'klipy_flutter',
             height: style.height,
             fit: BoxFit.contain,
           ),
