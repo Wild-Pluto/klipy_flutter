@@ -21,6 +21,7 @@ class KlipyTabView extends StatefulWidget {
   final Widget Function(BuildContext, Widget?)? builder;
   final Widget Function(BuildContext context, KlipyFeedItem item)?
   fallbackItemBuilder;
+  final bool Function(KlipyFeedItem)? isFullWidthItem;
   final KlipyCategoryStyle categoryStyle;
   final KlipyClient client;
   final String featuredCategory;
@@ -41,6 +42,7 @@ class KlipyTabView extends StatefulWidget {
     required this.client,
     this.builder,
     this.fallbackItemBuilder,
+    this.isFullWidthItem,
     this.categoryStyle = const KlipyCategoryStyle(),
     String? featuredCategory,
     int? gifsPerRow,
@@ -200,25 +202,64 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: MasonryGridView.count(
+      child: CustomScrollView(
         controller: _scrollController,
-        shrinkWrap: true,
-        crossAxisCount: widget.gifsPerRow,
-        crossAxisSpacing: 8,
         keyboardDismissBehavior: _appBarProvider.keyboardDismissBehavior,
-        itemBuilder: (ctx, idx) => _buildFeedItem(_list[idx]),
-        itemCount: _list.length,
-        mainAxisSpacing: 8,
-        // Add safe area padding if `KlipyAttributionType.poweredBy` is disabled
-        padding:
-            _tabProvider.attributionType == KlipyAttributionType.poweredBy
-                ? null
-                : EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom,
-                ),
-        scrollDirection: _scrollDirection,
+        slivers: _buildContentSlivers(),
       ),
     );
+  }
+
+  List<Widget> _buildContentSlivers() {
+    final slivers = <Widget>[];
+    final currentBatch = <KlipyFeedItem>[];
+
+    void flushBatch() {
+      if (currentBatch.isEmpty) return;
+      final items = List<KlipyFeedItem>.of(currentBatch);
+      slivers.add(
+        SliverMasonryGrid.count(
+          crossAxisCount: widget.gifsPerRow,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childCount: items.length,
+          itemBuilder: (ctx, idx) => _buildFeedItem(items[idx]),
+        ),
+      );
+      currentBatch.clear();
+    }
+
+    for (final item in _list) {
+      final isFullWidth = widget.isFullWidthItem?.call(item) ?? false;
+      if (isFullWidth) {
+        flushBatch();
+        slivers.add(
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: _buildFeedItem(item),
+            ),
+          ),
+        );
+      } else {
+        currentBatch.add(item);
+      }
+    }
+
+    flushBatch();
+
+    if (_tabProvider.attributionType != KlipyAttributionType.poweredBy) {
+      final bottom = MediaQuery.of(context).padding.bottom;
+      if (bottom > 0) {
+        slivers.add(
+          SliverToBoxAdapter(
+            child: SizedBox(height: bottom),
+          ),
+        );
+      }
+    }
+
+    return slivers;
   }
 
   Widget _buildFeedItem(KlipyFeedItem item) {
