@@ -3,6 +3,7 @@ import 'package:flutter_config/flutter_config.dart';
 import 'package:klipy_flutter/klipy_flutter.dart';
 import 'package:klipy_flutter_example/examples/dark_theme.dart';
 import 'package:klipy_flutter_example/examples/localization.dart';
+import 'package:klipy_flutter_example/widgets/webview_user_agent_loader.dart';
 
 void main() async {
   // only used to load api key from .env file, not required
@@ -35,21 +36,48 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  // replace apiKey with an api key provided by KLIPY > https://docs.klipy.com/getting-started
-  var klipyClient = KlipyClient(
-    apiKey: FlutterConfig.get('KLIPY_API_KEY'),
-    // Required for KLIPY ad serving in mixed feeds.
-    adRequestContext: const KlipyAdRequestContext(
-      customerId: 'example-user-id',
-      adMinWidth: 50,
-      adMaxWidth: 320,
-      adMinHeight: 50,
-      adMaxHeight: 180,
-    ),
-    userAgent: 'KLIPYFlutterExample/1.0 (Flutter)',
-  );
+  static const _fallbackUserAgent = 'KLIPYFlutterExample/1.0 (Flutter)';
+
+  late KlipyClient klipyClient;
+  String? _webViewUserAgent;
+
   // define a result that we can display later
   KlipyResultObject? selectedResult;
+
+  @override
+  void initState() {
+    super.initState();
+    klipyClient = _createKlipyClient(userAgent: _fallbackUserAgent);
+  }
+
+  KlipyClient _createKlipyClient({required String userAgent}) {
+    // replace apiKey with an api key provided by KLIPY > https://docs.klipy.com/getting-started
+    return KlipyClient(
+      apiKey: FlutterConfig.get('KLIPY_API_KEY'),
+      // Required for KLIPY ad serving in mixed feeds.
+      adRequestContext: const KlipyAdRequestContext(
+        customerId: 'example-user-id',
+        adMinWidth: 50,
+        adMaxWidth: 320,
+        adMinHeight: 50,
+        adMaxHeight: 180,
+      ),
+      // KLIPY ads require a browser-like WebView User-Agent. We resolve it
+      // at runtime and fall back to an app UA if unavailable.
+      userAgent: userAgent,
+    );
+  }
+
+  void _onWebViewUserAgentResolved(String? userAgent) {
+    final normalized = userAgent?.trim();
+    if (!mounted || normalized == null || normalized.isEmpty) return;
+    if (_webViewUserAgent == normalized) return;
+
+    setState(() {
+      _webViewUserAgent = normalized;
+      klipyClient = _createKlipyClient(userAgent: normalized);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +86,12 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('KLIPY Flutter Demo'),
       ),
-      body: _exampleBody(),
+      body: Stack(
+        children: [
+          _exampleBody(),
+          WebViewUserAgentLoader(onResolved: _onWebViewUserAgentResolved),
+        ],
+      ),
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -126,6 +159,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     )
                   : const Text('No GIF selected'),
+              _webViewUserAgent != null
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'WebView UA resolved',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
               selectedGif != null
                   ? Column(
                       children: [

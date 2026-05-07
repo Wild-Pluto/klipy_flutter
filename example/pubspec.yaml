@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_config: ^2.0.2
+  webview_flutter: ^4.13.1
   klipy_flutter:
     path: ../
 

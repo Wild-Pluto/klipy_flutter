@@ -72,8 +72,34 @@ final klipyClient = KlipyClient(
     adMinHeight: 50,
     adMaxHeight: 180,
   ),
-  userAgent: 'MyApp/1.0 (Flutter)',
+  // IMPORTANT:
+  // For KLIPY ads, this must be a *browser-like WebView User-Agent*.
+  // See: https://docs.klipy.com/advertisements/receiving-an-ad/browser-like-user-agent
+  userAgent: webViewUserAgentString,
 );
+```
+
+#### Getting a browser-like WebView User-Agent (recommended for ads)
+
+KLIPY ads require a **WebView** User-Agent (not an app-style UA like `MyApp/1.0 (Flutter)`).
+Fetch it once on app startup, cache it, and pass it into `KlipyClient(userAgent: ...)`.
+
+Example approach (using `webview_flutter`):
+
+```
+Future<String?> resolveWebViewUserAgent() async {
+  final controller = WebViewController()
+    ..setJavaScriptMode(JavaScriptMode.unrestricted);
+
+  // Load any document so we can evaluate navigator.userAgent
+  await controller.loadHtmlString('<html><body></body></html>');
+
+  final result = await controller.runJavaScriptReturningResult('navigator.userAgent');
+  final ua = result?.toString();
+
+  // Depending on platform, this may come back quoted. Normalize if needed.
+  return ua?.replaceAll(RegExp('^\"|\"$'), '');
+}
 ```
 
 ## Example

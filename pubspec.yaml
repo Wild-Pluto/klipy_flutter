@@ -1,6 +1,7 @@
 name: klipy_flutter
 version: 0.0.3
 description: An opinionated yet customizable Flutter package for searching and selecting from a list of GIFs/Stickers from the KLIPY GIF search API.
+publish_to: "none"
 homepage: https://github.com/flyclops
 repository: https://github.com/flyclops/klipy_flutter
 topics:
@@ -22,7 +23,7 @@ dependencies:
   klipy_dart:
     git:
       url: https://github.com/Wild-Pluto/klipy_dart.git
-      ref: feature/klipy-ads
+      ref: 1e2a88d797726076155ae4691f8a2ee4e1b6cf40
 
 dev_dependencies:
   flutter_test:
