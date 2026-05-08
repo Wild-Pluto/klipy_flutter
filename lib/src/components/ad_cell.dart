@@ -16,6 +16,8 @@ class KlipyAdCell extends StatefulWidget {
 
 class _KlipyAdCellState extends State<KlipyAdCell> {
   static const _logTag = '[KlipyAds][AdCell]';
+  static const _minAdHeight = 80.0;
+  static const _maxAdHeight = 220.0;
 
   late final WebViewController _controller;
   String? _directAdUrl;
@@ -102,19 +104,40 @@ class _KlipyAdCellState extends State<KlipyAdCell> {
     final adWidth = widget.adItem.width > 0 ? widget.adItem.width : 320;
     final adHeight = widget.adItem.height > 0 ? widget.adItem.height : 180;
     final adAspectRatio = adWidth / adHeight;
+    final safeAspectRatio = adAspectRatio > 0 ? adAspectRatio : (16 / 9);
 
-    return AspectRatio(
-      aspectRatio: adAspectRatio,
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) {
-          debugPrint('$_logTag ad-cell-tap');
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: WebViewWidget(controller: _controller),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final naturalHeight = availableWidth / safeAspectRatio;
+        final appliedHeight =
+            naturalHeight.clamp(_minAdHeight, _maxAdHeight).toDouble();
+
+        debugPrint(
+          '$_logTag dimensions '
+          'received=${widget.adItem.width}x${widget.adItem.height} '
+          'applied=${availableWidth.toStringAsFixed(1)}x${appliedHeight.toStringAsFixed(1)} '
+          'aspect=${safeAspectRatio.toStringAsFixed(3)}',
+        );
+
+        return SizedBox(
+          width: availableWidth,
+          height: appliedHeight,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) {
+              debugPrint('$_logTag ad-cell-tap');
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: WebViewWidget(
+                key: ValueKey('ad-webview-${widget.adItem.content.hashCode}'),
+                controller: _controller,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

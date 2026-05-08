@@ -220,7 +220,10 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
     void flushBatch() {
       if (currentBatch.isEmpty) return;
-      final items = List<KlipyFeedItem>.of(currentBatch);
+      final items = _reconfigureBatchForAds(
+        List<KlipyFeedItem>.of(currentBatch),
+        batchIndex: batchIndex,
+      );
       slivers.add(
         SliverMasonryGrid.count(
           key: ValueKey('masonry-batch-$batchIndex'),
@@ -228,7 +231,11 @@ class _KlipyTabViewState extends State<KlipyTabView>
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           childCount: items.length,
-          itemBuilder: (ctx, idx) => _buildFeedItem(items[idx]),
+          itemBuilder:
+              (ctx, idx) => _buildFeedItem(
+                items[idx],
+                itemKey: ValueKey('feed-b$batchIndex-i$idx-${items[idx].hashCode}'),
+              ),
         ),
       );
       batchIndex++;
@@ -243,7 +250,10 @@ class _KlipyTabViewState extends State<KlipyTabView>
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: _buildFeedItem(item),
+              child: _buildFeedItem(
+                item,
+                itemKey: ValueKey('full-${item.hashCode}'),
+              ),
             ),
           ),
         );
@@ -268,9 +278,50 @@ class _KlipyTabViewState extends State<KlipyTabView>
     return slivers;
   }
 
-  Widget _buildFeedItem(KlipyFeedItem item) {
+  List<KlipyFeedItem> _reconfigureBatchForAds(
+    List<KlipyFeedItem> items, {
+    required int batchIndex,
+  }) {
+    final preferredSlots = {0, 1};
+    final rowSize = widget.gifsPerRow;
+    if (rowSize <= 2) return items;
+
+    for (int i = 0; i < items.length; i++) {
+      final item = items[i];
+      if (item is! KlipyAdFeedItem) continue;
+
+      final slotBefore = i % rowSize;
+      if (preferredSlots.contains(slotBefore)) {
+        debugPrint(
+          '$_logTag ad-placement batch=$batchIndex index=$i slot=$slotBefore action=keep',
+        );
+        continue;
+      }
+
+      final targetRowStart = i + (rowSize - slotBefore);
+      if (targetRowStart >= items.length) {
+        debugPrint(
+          '$_logTag ad-placement batch=$batchIndex index=$i slot=$slotBefore action=keep-tail',
+        );
+        continue;
+      }
+
+      final ad = items.removeAt(i);
+      final target = (targetRowStart - 1).clamp(0, items.length).toInt();
+      items.insert(target, ad);
+      final slotAfter = target % rowSize;
+      debugPrint(
+        '$_logTag ad-placement batch=$batchIndex before=$slotBefore after=$slotAfter action=reconfigure',
+      );
+    }
+
+    return items;
+  }
+
+  Widget _buildFeedItem(KlipyFeedItem item, {Key? itemKey}) {
     if (item is KlipyGifFeedItem) {
       return ClipRRect(
+        key: itemKey,
         borderRadius: BorderRadius.circular(8),
         child: KlipySelectableGif(
           backgroundColor: widget.style.mediaBackgroundColor,
@@ -281,7 +332,7 @@ class _KlipyTabViewState extends State<KlipyTabView>
     }
 
     if (item is KlipyAdFeedItem) {
-      return KlipyAdCell(adItem: item);
+      return KlipyAdCell(key: itemKey, adItem: item);
     }
 
     if (widget.fallbackItemBuilder != null) {
