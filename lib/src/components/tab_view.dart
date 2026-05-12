@@ -233,13 +233,19 @@ class _KlipyTabViewState extends State<KlipyTabView>
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           childCount: items.length,
-          isFullSpan:
-              (index) => widget.isFullWidthItem?.call(items[index]) ?? false,
-          itemBuilder:
-              (ctx, index) => _buildFeedItem(
-                items[index],
-                itemKey: ValueKey('feed-i$index-${items[index].hashCode}'),
-              ),
+          isFullSpan: (index) {
+            if (index < 0 || index >= items.length) return false;
+            return widget.isFullWidthItem?.call(items[index]) ?? false;
+          },
+          itemBuilder: (ctx, index) {
+            if (index < 0 || index >= items.length) {
+              return const SizedBox.shrink();
+            }
+            return _buildFeedItem(
+              items[index],
+              itemKey: ValueKey('feed-i$index-${items[index].hashCode}'),
+            );
+          },
         ),
       );
     }

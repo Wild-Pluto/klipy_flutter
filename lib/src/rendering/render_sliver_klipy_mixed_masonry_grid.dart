@@ -99,6 +99,15 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     return v;
   }
 
+  /// [_isFullSpan] may index app data; the sliver sometimes probes `index ==
+  /// childCount` during layout — never forward those indices.
+  bool _isFullSpanIndexSafe(int index) {
+    if (index < 0) return false;
+    final cap = childManager.estimatedChildCount;
+    if (cap != null && index >= cap) return false;
+    return _isFullSpan(index);
+  }
+
   @override
   bool addInitialChild({int index = 0, double layoutOffset = 0.0}) {
     final hasFirstChild = super.addInitialChild(
@@ -139,7 +148,7 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     );
     if (child != null) {
       final idx = indexOf(child);
-      if (_isFullSpan(idx)) {
+      if (_isFullSpanIndexSafe(idx)) {
         child.layout(
           constraints.asBoxConstraints(
             crossAxisExtent: constraints.crossAxisExtent,
@@ -192,8 +201,9 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     final columnChildConstraints = constraints.asBoxConstraints(
       crossAxisExtent: childCrossAxisExtent,
     );
+
     BoxConstraints constraintsForIndex(int index) {
-      if (_isFullSpan(index)) {
+      if (_isFullSpanIndexSafe(index)) {
         return constraints.asBoxConstraints(
           crossAxisExtent: constraints.crossAxisExtent,
         );
@@ -212,7 +222,7 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     double positionChild(RenderBox child) {
       final idx = indexOf(child);
       final childParentData = _getParentData(child);
-      if (_isFullSpan(idx)) {
+      if (_isFullSpanIndexSafe(idx)) {
         childParentData.isFullSpan = true;
         final layoutStart = scrollOffsets.reduce(math.max);
         childParentData.layoutOffset = layoutStart;
@@ -293,7 +303,7 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
       if (crossI != null) {
         final childMainOffset = childScrollOffset(child)!;
         final idx = indexOf(child);
-        if (_isFullSpan(idx)) {
+        if (_isFullSpanIndexSafe(idx)) {
           for (var i = 0; i < crossAxisCount; i++) {
             if (scrollOffsets[i] == double.infinity) {
               scrollOffsets[i] = childMainOffset;
@@ -394,7 +404,7 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     final firstLaidOutChild = laidOut;
     final firstIdx = indexOf(firstLaidOutChild);
     final firstPd = _getParentData(firstLaidOutChild);
-    firstPd.isFullSpan = _isFullSpan(firstIdx);
+    firstPd.isFullSpan = _isFullSpanIndexSafe(firstIdx);
     final firstBottom =
         childScrollOffset(firstLaidOutChild)! +
         paintExtentOf(firstLaidOutChild) +
