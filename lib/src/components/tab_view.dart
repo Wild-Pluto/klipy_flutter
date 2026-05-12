@@ -63,6 +63,7 @@ class KlipyTabView extends StatefulWidget {
 class _KlipyTabViewState extends State<KlipyTabView>
     with AutomaticKeepAliveClientMixin {
   static const _logTag = '[KlipyAds][TabView]';
+  static const _maxScrollAttachAttempts = 12;
 
   @override
   bool get wantKeepAlive => widget.keepAliveTabView ?? true;
@@ -146,6 +147,7 @@ class _KlipyTabViewState extends State<KlipyTabView>
     _appBarProvider.removeListener(_appBarProviderListener);
     _scrollController.removeListener(_scrollControllerListener);
     _tabProvider.removeListener(_tabProviderListener);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -203,6 +205,8 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      // shrinkWrap + bottom sheet: viewport may attach one frame after data;
+      // scroll metrics are read only via _runWhenScrollControllerReady / hasClients.
       child: CustomScrollView(
         controller: _scrollController,
         primary: false,
@@ -229,8 +233,8 @@ class _KlipyTabViewState extends State<KlipyTabView>
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           childCount: items.length,
-          isFullSpan: (index) =>
-              widget.isFullWidthItem?.call(items[index]) ?? false,
+          isFullSpan:
+              (index) => widget.isFullWidthItem?.call(items[index]) ?? false,
           itemBuilder:
               (ctx, index) => _buildFeedItem(
                 items[index],
@@ -337,6 +341,24 @@ class _KlipyTabViewState extends State<KlipyTabView>
         : calculatedRequestLimit;
   }
 
+  /// Runs [action] after the [ScrollController] is attached (bottom sheet +
+  /// shrinkWrap can attach one or more frames after data / layout).
+  void _runWhenScrollControllerReady(
+    void Function() action, [
+    int attempt = 0,
+  ]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_scrollController.hasClients) {
+        if (attempt < _maxScrollAttachAttempts) {
+          _runWhenScrollControllerReady(action, attempt + 1);
+        }
+        return;
+      }
+      action();
+    });
+  }
+
   // Load an initial batch of gifs and then attempt to load more until the list
   // is full by checking if there is a scrollable area. The reason we are loading
   // like this and not with a predictive method that calculates based on size is
@@ -357,9 +379,9 @@ class _KlipyTabViewState extends State<KlipyTabView>
       await _loadMore();
     }
 
-    // Wait for a frame so that we can ensure that `scrollController` is attached
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!_scrollController.hasClients) return;
+    if (!mounted) return;
+    _runWhenScrollControllerReady(() {
+      if (!mounted || !_scrollController.hasClients) return;
       if (_scrollController.position.extentAfter == 0) {
         _loadMore(fillScrollableArea: true);
       }
@@ -462,11 +484,19 @@ class _KlipyTabViewState extends State<KlipyTabView>
       rethrow;
     }
 
-    if (!_scrollController.hasClients) return;
+    if (!mounted) return;
 
-    if (fillScrollableArea && _scrollController.position.extentAfter == 0) {
-      Future.microtask(() => _loadMore(fillScrollableArea: true));
+    if (fillScrollableArea) {
+      _runWhenScrollControllerReady(() {
+        if (!mounted || !_scrollController.hasClients) return;
+        if (_scrollController.position.extentAfter == 0) {
+          Future.microtask(() => _loadMore(fillScrollableArea: true));
+        }
+      });
+      return;
     }
+
+    if (!_scrollController.hasClients) return;
   }
 
   // Return selected gif
@@ -484,6 +514,7 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
   // if you scroll within a threshhold of the bottom of the screen, load more gifs
   void _scrollControllerListener() {
+    if (!mounted) return;
     if (!_scrollController.hasClients) return;
 
     // trending-gifs, etc
