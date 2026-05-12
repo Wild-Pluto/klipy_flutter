@@ -142,21 +142,25 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     BoxConstraints childConstraints, {
     bool parentUsesSize = false,
   }) {
+    // Lay out with **full** cross-axis first. The caller passes column-only
+    // constraints; using those for full-span ads (e.g. KlipyAdCell) forces a
+    // ~half-width pass (~202px for 2 columns) before relayout — LayoutBuilder /
+    // WebView can keep that width. Non-full-span children are re-laid out with
+    // [childConstraints] immediately below.
+    final fullCrossAxis = constraints.asBoxConstraints(
+      crossAxisExtent: constraints.crossAxisExtent,
+    );
     final child = super.insertAndLayoutLeadingChild(
-      childConstraints,
+      fullCrossAxis,
       parentUsesSize: parentUsesSize,
     );
     if (child != null) {
       final idx = indexOf(child);
       final parentData = _getParentData(child);
-      parentData.isFullSpan = false;
-      if (_isFullSpanIndexSafe(idx)) {
-        child.layout(
-          constraints.asBoxConstraints(
-            crossAxisExtent: constraints.crossAxisExtent,
-          ),
-          parentUsesSize: parentUsesSize,
-        );
+      final span = _isFullSpanIndexSafe(idx);
+      parentData.isFullSpan = span;
+      if (!span) {
+        child.layout(childConstraints, parentUsesSize: parentUsesSize);
       }
       parentData.crossAxisIndex =
           _previousCrossAxisIndexes.isNotEmpty
@@ -166,7 +170,7 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
           _previousMainAxisExtents.isNotEmpty
               ? _previousMainAxisExtents.removeLast()
               : 0;
-      if (_isFullSpanIndexSafe(idx)) {
+      if (span) {
         parentData.crossAxisIndex = 0;
       }
     }

@@ -11,5 +11,9 @@ export 'src/components/tab_view_emojis.dart';
 export 'src/components/tab_view_gifs.dart';
 export 'src/components/tab_view_stickers.dart';
 export 'src/components/tab_view.dart' show KlipyTabView, KlipyTabViewStyle;
+export 'src/layout/klipy_feed_layout_mode.dart';
+export 'src/layout/klipy_feed_row_layout_calculator.dart';
+export 'src/layout/klipy_feed_row_models.dart'
+    show KlipyFeedCell, KlipyFeedRow;
 export 'src/klipy_client.dart';
 export 'src/models/models.dart';

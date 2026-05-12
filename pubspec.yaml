@@ -23,7 +23,7 @@ dependencies:
   klipy_dart:
     git:
       url: https://github.com/Wild-Pluto/klipy_dart.git
-      ref: 1e2a88d797726076155ae4691f8a2ee4e1b6cf40
+      ref: 9e4184196a44479f335b66cb7a0dc74bf64c1143
 
 dev_dependencies:
   flutter_test:

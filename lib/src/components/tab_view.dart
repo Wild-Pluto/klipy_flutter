@@ -1,8 +1,10 @@
 // TODO: Not super happy with how categories exist in this file. Refactor in the future.
 // ignore_for_file: implementation_imports
 import 'package:extended_image/extended_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:klipy_flutter/src/components/klipy_tab_view_row_based_feed.dart';
 import 'package:klipy_flutter/src/components/sliver_klipy_mixed_masonry_grid.dart';
 import 'package:provider/provider.dart';
 import 'package:klipy_flutter/src/components/components.dart';
@@ -23,6 +25,7 @@ class KlipyTabView extends StatefulWidget {
   final Widget Function(BuildContext context, KlipyFeedItem item)?
   fallbackItemBuilder;
   final bool Function(KlipyFeedItem)? isFullWidthItem;
+  final KlipyFeedLayoutMode feedLayout;
   final KlipyCategoryStyle categoryStyle;
   final KlipyClient client;
   final String featuredCategory;
@@ -44,6 +47,7 @@ class KlipyTabView extends StatefulWidget {
     this.builder,
     this.fallbackItemBuilder,
     this.isFullWidthItem,
+    this.feedLayout = KlipyFeedLayoutMode.mixedMasonry,
     this.categoryStyle = const KlipyCategoryStyle(),
     String? featuredCategory,
     int? gifsPerRow,
@@ -207,47 +211,79 @@ class _KlipyTabViewState extends State<KlipyTabView>
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       // shrinkWrap + bottom sheet: viewport may attach one frame after data;
       // scroll metrics are read only via _runWhenScrollControllerReady / hasClients.
-      child: CustomScrollView(
-        controller: _scrollController,
-        primary: false,
-        physics: const ClampingScrollPhysics(),
-        shrinkWrap: true,
-        keyboardDismissBehavior: _appBarProvider.keyboardDismissBehavior,
-        slivers: _buildContentSlivers(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return CustomScrollView(
+            controller: _scrollController,
+            primary: false,
+            physics: const ClampingScrollPhysics(),
+            shrinkWrap: true,
+            keyboardDismissBehavior: _appBarProvider.keyboardDismissBehavior,
+            slivers: _buildContentSlivers(constraints.maxWidth),
+          );
+        },
       ),
     );
   }
 
-  List<Widget> _buildContentSlivers() {
+  List<Widget> _buildContentSlivers(double feedWidth) {
     final slivers = <Widget>[];
 
     if (_list.isNotEmpty) {
-      final items = _reconfigureBatchForAds(
-        List<KlipyFeedItem>.of(_list),
-        batchIndex: 0,
-      );
-      slivers.add(
-        SliverKlipyMixedMasonryGrid.count(
-          key: const ValueKey('klipy-mixed-masonry-feed'),
-          crossAxisCount: widget.gifsPerRow,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childCount: items.length,
-          isFullSpan: (index) {
-            if (index < 0 || index >= items.length) return false;
-            return widget.isFullWidthItem?.call(items[index]) ?? false;
-          },
-          itemBuilder: (ctx, index) {
-            if (index < 0 || index >= items.length) {
-              return const SizedBox.shrink();
-            }
-            return _buildFeedItem(
-              items[index],
-              itemKey: ValueKey('feed-i$index-${items[index].hashCode}'),
-            );
-          },
-        ),
-      );
+      if (widget.feedLayout == KlipyFeedLayoutMode.rowBased) {
+        final items = List<KlipyFeedItem>.of(_list);
+        slivers.add(
+          KlipyTabViewRowBasedFeedSliver(
+            key: const ValueKey('klipy-row-based-feed'),
+            items: items,
+            feedWidth: feedWidth,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            maxCellsPerRow: widget.gifsPerRow,
+            itemBuilder: (cell) {
+              return SizedBox(
+                width: cell.width,
+                height: cell.height,
+                child: _buildFeedItem(
+                  cell.item,
+                  feedIndex: cell.sourceIndex,
+                  itemKey: ValueKey(
+                    'feed-i${cell.sourceIndex}-${cell.item.hashCode}',
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      } else {
+        final items = _reconfigureBatchForAds(
+          List<KlipyFeedItem>.of(_list),
+          batchIndex: 0,
+        );
+        slivers.add(
+          SliverKlipyMixedMasonryGrid.count(
+            key: const ValueKey('klipy-mixed-masonry-feed'),
+            crossAxisCount: widget.gifsPerRow,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childCount: items.length,
+            isFullSpan: (index) {
+              if (index < 0 || index >= items.length) return false;
+              return widget.isFullWidthItem?.call(items[index]) ?? false;
+            },
+            itemBuilder: (ctx, index) {
+              if (index < 0 || index >= items.length) {
+                return const SizedBox.shrink();
+              }
+              return _buildFeedItem(
+                items[index],
+                feedIndex: index,
+                itemKey: ValueKey('feed-i$index-${items[index].hashCode}'),
+              );
+            },
+          ),
+        );
+      }
     }
 
     if (_tabProvider.attributionType != KlipyAttributionType.poweredBy) {
@@ -303,7 +339,11 @@ class _KlipyTabViewState extends State<KlipyTabView>
     return items;
   }
 
-  Widget _buildFeedItem(KlipyFeedItem item, {Key? itemKey}) {
+  Widget _buildFeedItem(
+    KlipyFeedItem item, {
+    Key? itemKey,
+    required int feedIndex,
+  }) {
     if (item is KlipyGifFeedItem) {
       return ClipRRect(
         key: itemKey,
@@ -317,7 +357,29 @@ class _KlipyTabViewState extends State<KlipyTabView>
     }
 
     if (item is KlipyAdFeedItem) {
-      return KlipyAdCell(key: itemKey, adItem: item);
+      if (kDebugMode) {
+        final fullSpan =
+            widget.feedLayout == KlipyFeedLayoutMode.rowBased
+                ? false
+                : (widget.isFullWidthItem?.call(item) ?? false);
+        debugPrint(
+          '$_logTag ad-shell feedIndex=$feedIndex '
+          'apiWxH=${item.width}x${item.height} '
+          'fullSpan=$fullSpan',
+        );
+      }
+      return ClipRRect(
+        clipBehavior: Clip.hardEdge,
+        key: itemKey,
+        borderRadius: BorderRadius.circular(8),
+        child: ColoredBox(
+          color: widget.style.mediaBackgroundColor,
+          child: KlipyAdCell(
+            adItem: item,
+            slotFillColor: widget.style.mediaBackgroundColor,
+          ),
+        ),
+      );
     }
 
     if (widget.fallbackItemBuilder != null) {
