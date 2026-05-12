@@ -1,8 +1,9 @@
 // TODO: Not super happy with how categories exist in this file. Refactor in the future.
 // ignore_for_file: implementation_imports
 import 'package:extended_image/extended_image.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:klipy_flutter/src/components/sliver_klipy_mixed_masonry_grid.dart';
 import 'package:provider/provider.dart';
 import 'package:klipy_flutter/src/components/components.dart';
 import 'package:klipy_flutter/src/providers/app_bar_provider.dart';
@@ -215,54 +216,29 @@ class _KlipyTabViewState extends State<KlipyTabView>
 
   List<Widget> _buildContentSlivers() {
     final slivers = <Widget>[];
-    final currentBatch = <KlipyFeedItem>[];
-    int batchIndex = 0;
 
-    void flushBatch() {
-      if (currentBatch.isEmpty) return;
+    if (_list.isNotEmpty) {
       final items = _reconfigureBatchForAds(
-        List<KlipyFeedItem>.of(currentBatch),
-        batchIndex: batchIndex,
+        List<KlipyFeedItem>.of(_list),
+        batchIndex: 0,
       );
       slivers.add(
-        SliverMasonryGrid.count(
-          key: ValueKey('masonry-batch-$batchIndex'),
+        SliverKlipyMixedMasonryGrid.count(
+          key: const ValueKey('klipy-mixed-masonry-feed'),
           crossAxisCount: widget.gifsPerRow,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           childCount: items.length,
+          isFullSpan: (index) =>
+              widget.isFullWidthItem?.call(items[index]) ?? false,
           itemBuilder:
-              (ctx, idx) => _buildFeedItem(
-                items[idx],
-                itemKey: ValueKey('feed-b$batchIndex-i$idx-${items[idx].hashCode}'),
+              (ctx, index) => _buildFeedItem(
+                items[index],
+                itemKey: ValueKey('feed-i$index-${items[index].hashCode}'),
               ),
         ),
       );
-      batchIndex++;
-      currentBatch.clear();
     }
-
-    for (final item in _list) {
-      final isFullWidth = widget.isFullWidthItem?.call(item) ?? false;
-      if (isFullWidth) {
-        flushBatch();
-        slivers.add(
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: _buildFeedItem(
-                item,
-                itemKey: ValueKey('full-${item.hashCode}'),
-              ),
-            ),
-          ),
-        );
-      } else {
-        currentBatch.add(item);
-      }
-    }
-
-    flushBatch();
 
     if (_tabProvider.attributionType != KlipyAttributionType.poweredBy) {
       final bottom = MediaQuery.of(context).padding.bottom;
@@ -284,7 +260,6 @@ class _KlipyTabViewState extends State<KlipyTabView>
   }) {
     final preferredSlots = {0, 1};
     final rowSize = widget.gifsPerRow;
-    if (rowSize <= 2) return items;
 
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
