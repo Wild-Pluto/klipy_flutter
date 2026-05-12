@@ -148,6 +148,8 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     );
     if (child != null) {
       final idx = indexOf(child);
+      final parentData = _getParentData(child);
+      parentData.isFullSpan = false;
       if (_isFullSpanIndexSafe(idx)) {
         child.layout(
           constraints.asBoxConstraints(
@@ -156,7 +158,6 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
           parentUsesSize: parentUsesSize,
         );
       }
-      final parentData = _getParentData(child);
       parentData.crossAxisIndex =
           _previousCrossAxisIndexes.isNotEmpty
               ? _previousCrossAxisIndexes.removeLast()
@@ -165,6 +166,9 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
           _previousMainAxisExtents.isNotEmpty
               ? _previousMainAxisExtents.removeLast()
               : 0;
+      if (_isFullSpanIndexSafe(idx)) {
+        parentData.crossAxisIndex = 0;
+      }
     }
     return child;
   }
@@ -186,6 +190,7 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
     RenderBox? walk = firstChild;
     while (walk != null) {
       final pd = _getParentData(walk);
+      pd.isFullSpan = false;
       final ci = pd.crossAxisIndex;
       if (ci != null && (ci < 0 || ci >= crossAxisCount)) {
         pd.crossAxisIndex = _safeCrossAxisIndex(ci);
@@ -227,6 +232,12 @@ class RenderSliverKlipyMixedMasonryGrid extends RenderSliverMultiBoxAdaptor {
         final layoutStart = scrollOffsets.reduce(math.max);
         childParentData.layoutOffset = layoutStart;
         childParentData.crossAxisIndex = 0;
+        child.layout(
+          constraints.asBoxConstraints(
+            crossAxisExtent: constraints.crossAxisExtent,
+          ),
+          parentUsesSize: true,
+        );
         final bottom =
             childScrollOffset(child)! + paintExtentOf(child) + mainAxisSpacing;
         for (var i = 0; i < crossAxisCount; i++) {
